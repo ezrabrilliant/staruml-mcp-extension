@@ -14,6 +14,11 @@ import {
   updateElement,
   deleteElement,
 } from "./handlers/elements.js";
+import {
+  createDiagram,
+  switchDiagram,
+  closeDiagramById,
+} from "./handlers/diagrams.js";
 import "./types.js";
 
 const EXT_PORT = 58322;
@@ -37,6 +42,11 @@ const handlers: Record<string, Handler> = {
   "/create_element": createElement,
   "/update_element": updateElement,
   "/delete_element": deleteElement,
+
+  // Diagram management
+  "/create_diagram": createDiagram,
+  "/switch_diagram": switchDiagram,
+  "/close_diagram": closeDiagramById,
 };
 
 let server: ExtensionHttpServer | null = null;

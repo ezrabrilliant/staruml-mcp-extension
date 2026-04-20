@@ -339,6 +339,81 @@ function isOfType(elem, typeName) {
   return ctor?.name === typeName;
 }
 
+// src/handlers/diagrams.ts
+var createDiagram = (body) => {
+  const typeName = body.type;
+  const parentId = body.parentId;
+  const name = typeof body.name === "string" ? body.name : void 0;
+  if (typeof typeName !== "string" || typeName.length === 0) {
+    return {
+      success: false,
+      error: "Required field 'type' (string) missing. Example: 'UMLClassDiagram', 'UMLUseCaseDiagram', 'UMLSequenceDiagram', 'UMLActivityDiagram', 'ERDDiagram'"
+    };
+  }
+  if (typeof parentId !== "string" || parentId.length === 0) {
+    return { success: false, error: "Required field 'parentId' (string) missing" };
+  }
+  const parent = app.repository.get(parentId);
+  if (!parent) {
+    return { success: false, error: `Parent element not found: ${parentId}` };
+  }
+  try {
+    const options = {
+      id: typeName,
+      parent
+    };
+    if (name !== void 0) {
+      options.diagramInitializer = (d2) => {
+        d2.name = name;
+      };
+    }
+    const diagram = app.engine.createDiagram(options);
+    const d = diagram;
+    return {
+      success: true,
+      data: {
+        _id: d._id,
+        name: d.name,
+        type: diagram.constructor.name
+      }
+    };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+};
+var switchDiagram = (body) => {
+  const id = body.id;
+  if (typeof id !== "string" || id.length === 0) {
+    return { success: false, error: "Required field 'id' (diagram id) missing" };
+  }
+  const diagram = app.repository.get(id);
+  if (!diagram) {
+    return { success: false, error: `Diagram not found: ${id}` };
+  }
+  try {
+    app.diagrams.setCurrentDiagram(diagram);
+    return { success: true, data: { _id: id } };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+};
+var closeDiagramById = (body) => {
+  const id = body.id;
+  if (typeof id !== "string" || id.length === 0) {
+    return { success: false, error: "Required field 'id' missing" };
+  }
+  const diagram = app.repository.get(id);
+  if (!diagram) {
+    return { success: false, error: `Diagram not found: ${id}` };
+  }
+  try {
+    app.diagrams.closeDiagram(diagram);
+    return { success: true, data: { closed: id } };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+};
+
 // src/main.ts
 var EXT_PORT = 58322;
 var LOG_PREFIX = "[staruml-mcp-ext]";
@@ -357,7 +432,11 @@ var handlers = {
   "/find_elements": findElements,
   "/create_element": createElement,
   "/update_element": updateElement,
-  "/delete_element": deleteElement
+  "/delete_element": deleteElement,
+  // Diagram management
+  "/create_diagram": createDiagram,
+  "/switch_diagram": switchDiagram,
+  "/close_diagram": closeDiagramById
 };
 var server = null;
 async function init() {
