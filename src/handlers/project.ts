@@ -49,7 +49,9 @@ export const openProject: Handler = async (body) => {
     return { success: false, error: "Required field 'filename' (string) missing" };
   }
   try {
-    await app.project.loadFromFile(filename);
+    // API docs: ProjectManager.load(fullPath) returns $.Promise.
+    const project = app.project as unknown as { load: (fp: string) => unknown };
+    await Promise.resolve(project.load(filename));
     return { success: true, data: { filename } };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };

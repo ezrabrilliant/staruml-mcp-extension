@@ -58,7 +58,7 @@ var ExtensionHttpServer = class {
     if (req.method === "GET" && url === "/") {
       this.sendJson(res, 200, {
         name: "staruml-mcp-extension",
-        version: "0.2.1",
+        version: "0.2.2",
         endpoints: Object.keys(this.handlers).sort()
       });
       return;
@@ -220,7 +220,8 @@ var openProject = async (body) => {
     return { success: false, error: "Required field 'filename' (string) missing" };
   }
   try {
-    await app.project.loadFromFile(filename);
+    const project = app.project;
+    await Promise.resolve(project.load(filename));
     return { success: true, data: { filename } };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
@@ -358,7 +359,6 @@ function collectDeletionTargets(root) {
       const repo = app.repository;
       if (repo.getViewsOf) for (const v of repo.getViewsOf(e) ?? []) stack.push(v);
       if (repo.getEdgeViewsOf) for (const v of repo.getEdgeViewsOf(e) ?? []) stack.push(v);
-      if (repo.getRefsTo) for (const r of repo.getRefsTo(e) ?? []) stack.push(r);
     } catch {
     }
   }

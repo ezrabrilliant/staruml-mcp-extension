@@ -3,7 +3,7 @@
   "title": "MCP Extension for StarUML",
   "description": "Extends StarUML HTTP API with endpoints for element CRUD, project ops, and command execution — enabling MCP clients to drive StarUML programmatically.",
   "homepage": "https://github.com/ezrabrilliant/staruml-mcp-extension",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "keywords": [
     "staruml",
     "extension",

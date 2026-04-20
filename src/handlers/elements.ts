@@ -163,14 +163,15 @@ function collectDeletionTargets(root: Record<string, unknown>): {
     for (const v of subViews) stack.push(v);
 
     try {
+      // Only collect Views that directly depict the element (narrow scope).
+      // Do NOT call getRefsTo — that follows every reference including
+      // the Project root, which cascades to the entire workspace.
       const repo = app.repository as unknown as {
         getViewsOf?: (el: Record<string, unknown>) => Record<string, unknown>[];
         getEdgeViewsOf?: (el: Record<string, unknown>) => Record<string, unknown>[];
-        getRefsTo?: (el: Record<string, unknown>) => Record<string, unknown>[];
       };
       if (repo.getViewsOf) for (const v of repo.getViewsOf(e) ?? []) stack.push(v);
       if (repo.getEdgeViewsOf) for (const v of repo.getEdgeViewsOf(e) ?? []) stack.push(v);
-      if (repo.getRefsTo) for (const r of repo.getRefsTo(e) ?? []) stack.push(r);
     } catch {
       /* ignore */
     }
