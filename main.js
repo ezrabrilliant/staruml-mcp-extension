@@ -57,7 +57,7 @@ var ExtensionHttpServer = class {
     const url = req.url ?? "/";
     if (req.method === "GET" && url === "/") {
       this.sendJson(res, 200, {
-        name: "staruml-mcp-ext",
+        name: "staruml-mcp-extension",
         version: "0.1.0",
         endpoints: Object.keys(this.handlers).sort()
       });
@@ -415,6 +415,45 @@ var closeDiagramById = (body) => {
 };
 
 // src/main.ts
+var debugHandler = () => {
+  const appKeys = Object.keys(app).sort();
+  const commandsInfo = {
+    type: typeof app.commands,
+    keys: app.commands ? Object.keys(app.commands).sort() : null,
+    proto: app.commands ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.commands)).sort() : null
+  };
+  const repositoryInfo = {
+    type: typeof app.repository,
+    keys: app.repository ? Object.keys(app.repository).sort() : null,
+    proto: app.repository ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.repository)).sort() : null
+  };
+  const engineInfo = {
+    type: typeof app.engine,
+    keys: app.engine ? Object.keys(app.engine).sort() : null,
+    proto: app.engine ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.engine)).sort() : null
+  };
+  const factoryInfo = {
+    type: typeof app.factory,
+    keys: app.factory ? Object.keys(app.factory).sort() : null,
+    proto: app.factory ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.factory)).sort() : null
+  };
+  const diagramsInfo = {
+    type: typeof app.diagrams,
+    keys: app.diagrams ? Object.keys(app.diagrams).sort() : null,
+    proto: app.diagrams ? Object.getOwnPropertyNames(Object.getPrototypeOf(app.diagrams)).sort() : null
+  };
+  return {
+    success: true,
+    data: {
+      app_keys: appKeys,
+      commands: commandsInfo,
+      repository: repositoryInfo,
+      engine: engineInfo,
+      factory: factoryInfo,
+      diagrams: diagramsInfo
+    }
+  };
+};
 var EXT_PORT = 58322;
 var LOG_PREFIX = "[staruml-mcp-ext]";
 var handlers = {
@@ -436,7 +475,9 @@ var handlers = {
   // Diagram management
   "/create_diagram": createDiagram,
   "/switch_diagram": switchDiagram,
-  "/close_diagram": closeDiagramById
+  "/close_diagram": closeDiagramById,
+  // Debug
+  "/debug": debugHandler
 };
 var server = null;
 async function init() {
