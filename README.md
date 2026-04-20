@@ -1,6 +1,14 @@
 # staruml-mcp-extension
 
-StarUML extension that adds HTTP endpoints for element CRUD, project lifecycle, and command execution. Companion to [`staruml-mcp`](https://github.com/ezrabrilliant/staruml-mcp) MCP server.
+StarUML extension that adds HTTP endpoints for element CRUD, project lifecycle, and command execution on `localhost:58322` — so any HTTP client (or MCP server) can drive StarUML programmatically.
+
+**Companion to [`staruml-mcp`](https://github.com/ezrabrilliant/staruml-mcp)** (npm MCP server) — install both to let AI agents (Claude Code, Cursor, VS Code, Codex) use these endpoints as tools.
+
+```
+  AI Agent  ──MCP──►  staruml-mcp (npm)  ──HTTP──►  this extension  ──►  StarUML
+```
+
+If you only want to curl StarUML from your own scripts, install just this extension.
 
 ## Installation
 
