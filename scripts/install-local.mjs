@@ -23,11 +23,11 @@ function extensionsDir() {
 
 function main() {
   const target = join(extensionsDir(), EXT_NAME);
-  const distMain = "dist/main.js";
+  const mainJs = "main.js";
   const pkgJson = "package.json";
 
-  if (!existsSync(distMain)) {
-    console.error(`❌ ${distMain} not found. Run "npm run build" first.`);
+  if (!existsSync(mainJs)) {
+    console.error(`❌ ${mainJs} not found. Run "npm run build" first.`);
     process.exit(1);
   }
 
@@ -36,7 +36,7 @@ function main() {
   }
   mkdirSync(target, { recursive: true });
 
-  cpSync(distMain, join(target, "main.js"));
+  cpSync(mainJs, join(target, "main.js"));
 
   const pkg = JSON.parse(readFileSync(pkgJson, "utf-8"));
   // Trim dev-only fields before installing

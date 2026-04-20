@@ -6,7 +6,7 @@ const watch = process.argv.includes("--watch");
 const options = {
   entryPoints: ["src/main.ts"],
   bundle: true,
-  outfile: "dist/main.js",
+  outfile: "main.js",
   platform: "node",
   target: "node20",
   format: "cjs",
