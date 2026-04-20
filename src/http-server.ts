@@ -58,6 +58,7 @@ export class ExtensionHttpServer {
       this.sendJson(res, 200, {
         name: "staruml-mcp-extension",
         version: "0.1.0",
+        build: "b3-factory-fix",
         endpoints: Object.keys(this.handlers).sort(),
       });
       return;

@@ -1,20 +1,13 @@
 /**
  * Type declarations for StarUML Plugin API globals.
- * StarUML injects `app` as a global with access to its internal modules.
- * See https://files.staruml.io/api-docs/2.0.0/api/index.html
+ * Derived from live runtime introspection (Object.keys + prototype methods).
  */
 
-export interface Command {
-  getID(): string;
-  getName(): string;
-  execute(...args: unknown[]): unknown;
-}
-
 export interface CommandManager {
-  register(name: string, id: string, handler: (...args: unknown[]) => unknown): Command | null;
+  register(id: string, name: string, handler: (...args: unknown[]) => unknown): unknown;
   execute(id: string, ...args: unknown[]): unknown;
-  getAll(): string[];
-  get(id: string): Command | undefined;
+  commandNames: string[];
+  commands: Record<string, unknown>;
 }
 
 export interface ProjectManager {
@@ -38,8 +31,11 @@ export interface Repository {
   select(selector: string): Element[];
   find(matcher: (elem: Element) => boolean): Element | null;
   findAll(matcher: (elem: Element) => boolean): Element[];
-  insert(parent: Element, field: string, elem: Element): void;
-  bypassFieldAssign(elem: Element, field: string, value: unknown): void;
+  search(query: string): Element[];
+  getInstancesOf(typeName: string): Element[];
+  lookupAndFind(...args: unknown[]): Element | null;
+  getIdMap(): Record<string, Element>;
+  isElement(value: unknown): boolean;
 }
 
 export interface Factory {
@@ -49,21 +45,28 @@ export interface Factory {
     parent?: Element;
     diagramInitializer?: (d: Element) => void;
   }): Element;
+  createModelAndView(options: unknown): Element;
+  createViewOf(options: unknown): Element;
 }
 
 export interface Engine {
-  createModel(options: unknown): Element;
-  createDiagram(options: unknown): Element;
   addModel(parent: Element, field: string, model: Element): Element;
+  addModelAndView(options: unknown): unknown;
   setProperty(elem: Element, field: string, value: unknown): void;
+  setProperties(elem: Element, values: Record<string, unknown>): void;
   deleteElements(elements: Element[]): void;
+  layoutDiagram(diagram: Element, direction?: string): void;
+  relocate(elem: Element, parent: Element, field: string): void;
 }
 
 export interface DiagramManager {
   getCurrentDiagram(): Element | null;
   setCurrentDiagram(diagram: Element, skipEvent?: boolean): void;
-  getDiagrams(): Element[];
+  getWorkingDiagrams(): Element[];
+  openDiagram(diagram: Element): void;
   closeDiagram(diagram: Element): void;
+  closeAll(): void;
+  closeOthers(diagram: Element): void;
 }
 
 export interface StarUMLApp {

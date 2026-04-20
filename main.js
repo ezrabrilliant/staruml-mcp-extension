@@ -59,6 +59,7 @@ var ExtensionHttpServer = class {
       this.sendJson(res, 200, {
         name: "staruml-mcp-extension",
         version: "0.1.0",
+        build: "b3-factory-fix",
         endpoints: Object.keys(this.handlers).sort()
       });
       return;
@@ -120,10 +121,23 @@ var ExtensionHttpServer = class {
 };
 
 // src/handlers/commands.ts
+function collectCommandIds() {
+  const cmds = app.commands;
+  if (Array.isArray(cmds.commandNames)) {
+    return cmds.commandNames.filter((x) => typeof x === "string");
+  }
+  if (cmds.commandNames && typeof cmds.commandNames === "object") {
+    return Object.keys(cmds.commandNames);
+  }
+  if (cmds.commands && typeof cmds.commands === "object") {
+    return Object.keys(cmds.commands);
+  }
+  return [];
+}
 var getAllCommands = () => {
   try {
-    const ids = app.commands.getAll();
-    return { success: true, data: { count: ids.length, ids: ids.sort() } };
+    const ids = collectCommandIds();
+    return { success: true, data: { count: ids.length, ids: [...ids].sort() } };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
@@ -134,8 +148,8 @@ var executeCommand = async (body) => {
     return { success: false, error: "Required field 'id' (string) missing" };
   }
   const args = Array.isArray(body.args) ? body.args : [];
-  const cmd = app.commands.get(id);
-  if (!cmd) {
+  const knownIds = collectCommandIds();
+  if (!knownIds.includes(id)) {
     return { success: false, error: `Command not registered: ${id}` };
   }
   try {
@@ -239,12 +253,9 @@ var findElements = (body) => {
   const typeName = typeof body.type === "string" ? body.type : null;
   const nameFilter = typeof body.name === "string" ? body.name : null;
   try {
-    const all = app.repository.findAll((elem) => {
-      if (typeName && !isOfType(elem, typeName)) return false;
-      if (nameFilter && elem.name !== nameFilter) return false;
-      return true;
-    });
-    return { success: true, data: { count: all.length, elements: all.map(shallow) } };
+    const pool = typeName ? app.repository.getInstancesOf(typeName) : app.repository.findAll(() => true);
+    const filtered = nameFilter ? pool.filter((e) => e.name === nameFilter) : pool;
+    return { success: true, data: { count: filtered.length, elements: filtered.map(shallow) } };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
@@ -264,16 +275,15 @@ var createElement = (body) => {
     return { success: false, error: `Parent element not found: ${parentId}` };
   }
   try {
-    const options = {
+    const elem = app.factory.createModel({
       id: typeName,
-      parent
-    };
-    if (name !== void 0) {
-      options.modelInitializer = (m) => {
-        m.name = name;
-      };
-    }
-    const elem = app.engine.createModel(options);
+      parent,
+      ...name !== void 0 && {
+        modelInitializer: (m) => {
+          m.name = name;
+        }
+      }
+    });
     return { success: true, data: shallow(elem) };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
@@ -334,10 +344,6 @@ function shallow(elem) {
   }
   return out;
 }
-function isOfType(elem, typeName) {
-  const ctor = elem.constructor;
-  return ctor?.name === typeName;
-}
 
 // src/handlers/diagrams.ts
 var createDiagram = (body) => {
@@ -358,16 +364,15 @@ var createDiagram = (body) => {
     return { success: false, error: `Parent element not found: ${parentId}` };
   }
   try {
-    const options = {
+    const diagram = app.factory.createDiagram({
       id: typeName,
-      parent
-    };
-    if (name !== void 0) {
-      options.diagramInitializer = (d2) => {
-        d2.name = name;
-      };
-    }
-    const diagram = app.engine.createDiagram(options);
+      parent,
+      ...name !== void 0 && {
+        diagramInitializer: (d2) => {
+          d2.name = name;
+        }
+      }
+    });
     const d = diagram;
     return {
       success: true,

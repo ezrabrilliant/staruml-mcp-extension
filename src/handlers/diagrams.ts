@@ -22,16 +22,15 @@ export const createDiagram: Handler = (body) => {
   }
 
   try {
-    const options: Record<string, unknown> = {
+    const diagram = app.factory.createDiagram({
       id: typeName,
       parent,
-    };
-    if (name !== undefined) {
-      options.diagramInitializer = (d: Record<string, unknown>) => {
-        d.name = name;
-      };
-    }
-    const diagram = app.engine.createDiagram(options);
+      ...(name !== undefined && {
+        diagramInitializer: (d) => {
+          d.name = name;
+        },
+      }),
+    });
     const d = diagram as Record<string, unknown>;
     return {
       success: true,

@@ -17,12 +17,16 @@ export const findElements: Handler = (body) => {
   const nameFilter = typeof body.name === "string" ? body.name : null;
 
   try {
-    const all = app.repository.findAll((elem: Record<string, unknown>) => {
-      if (typeName && !isOfType(elem, typeName)) return false;
-      if (nameFilter && elem.name !== nameFilter) return false;
-      return true;
-    });
-    return { success: true, data: { count: all.length, elements: all.map(shallow) } };
+    // Prefer getInstancesOf when type is given (faster + exact)
+    const pool = typeName
+      ? (app.repository.getInstancesOf(typeName) as Record<string, unknown>[])
+      : app.repository.findAll(() => true);
+
+    const filtered = nameFilter
+      ? pool.filter((e) => e.name === nameFilter)
+      : pool;
+
+    return { success: true, data: { count: filtered.length, elements: filtered.map(shallow) } };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
@@ -46,16 +50,15 @@ export const createElement: Handler = (body) => {
   }
 
   try {
-    const options: Record<string, unknown> = {
+    const elem = app.factory.createModel({
       id: typeName,
       parent,
-    };
-    if (name !== undefined) {
-      options.modelInitializer = (m: Record<string, unknown>) => {
-        m.name = name;
-      };
-    }
-    const elem = app.engine.createModel(options);
+      ...(name !== undefined && {
+        modelInitializer: (m) => {
+          m.name = name;
+        },
+      }),
+    });
     return { success: true, data: shallow(elem as Record<string, unknown>) };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
@@ -125,7 +128,3 @@ function shallow(elem: Record<string, unknown>): Record<string, unknown> {
   return out;
 }
 
-function isOfType(elem: Record<string, unknown>, typeName: string): boolean {
-  const ctor = elem.constructor as { name?: string } | undefined;
-  return ctor?.name === typeName;
-}
