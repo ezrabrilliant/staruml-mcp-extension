@@ -7,7 +7,7 @@ import { cpSync, existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } fr
 import { homedir, platform } from "node:os";
 import { join } from "node:path";
 
-const EXT_NAME = "staruml-mcp-ext";
+const EXT_NAME = "staruml-mcp-extension";
 
 function extensionsDir() {
   const home = homedir();

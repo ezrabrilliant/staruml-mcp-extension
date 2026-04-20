@@ -1,4 +1,4 @@
-# staruml-mcp-ext
+# staruml-mcp-extension
 
 [![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![StarUML](https://img.shields.io/badge/StarUML-%E2%89%A5%207.0.0-blue.svg)](https://staruml.io)
@@ -45,8 +45,8 @@ All POST + JSON body, response shape `{success: boolean, data?: any, error?: str
 ### From source (development)
 
 ```bash
-git clone https://github.com/ezrabrilliant/staruml-mcp-ext.git
-cd staruml-mcp-ext
+git clone https://github.com/ezrabrilliant/staruml-mcp-extension.git
+cd staruml-mcp-extension
 npm install
 npm run build
 npm run install:local
@@ -58,14 +58,14 @@ Then in StarUML, press `Ctrl+R` (or `Debug → Reload`) to load the extension.
 
 1. In StarUML, open `Tools → Extension Manager`
 2. Click **Install from URL**
-3. Enter `https://github.com/ezrabrilliant/staruml-mcp-ext`
+3. Enter `https://github.com/ezrabrilliant/staruml-mcp-extension`
 4. Restart or reload StarUML
 
 ### Verify
 
 ```bash
 curl http://localhost:58322/
-# → {"name":"staruml-mcp-ext","version":"0.1.0","endpoints":[...]}
+# → {"name":"staruml-mcp-extension","version":"0.1.0","endpoints":[...]}
 ```
 
 ## Prerequisites
@@ -98,7 +98,7 @@ Bundling uses `esbuild` because StarUML extensions can't load external node_modu
 │  └─────────────────┬──────────────────┘ │
 │                    │ direct call        │
 │  ┌─────────────────▼──────────────────┐ │
-│  │ staruml-mcp-ext (THIS extension)   │ │
+│  │ staruml-mcp-extension (THIS extension)   │ │
 │  │   HTTP server on 127.0.0.1:58322   │ │
 │  │   15 endpoints wrapping Plugin API │ │
 │  └─────────────────┬──────────────────┘ │

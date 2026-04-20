@@ -1,8 +1,8 @@
 {
-  "name": "staruml-mcp-ext",
+  "name": "staruml-mcp-extension",
   "title": "MCP Extension for StarUML",
   "description": "Extends StarUML HTTP API with endpoints for element CRUD, project ops, and command execution — enabling MCP clients to drive StarUML programmatically.",
-  "homepage": "https://github.com/ezrabrilliant/staruml-mcp-ext",
+  "homepage": "https://github.com/ezrabrilliant/staruml-mcp-extension",
   "version": "0.1.0",
   "keywords": [
     "staruml",
@@ -20,10 +20,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ezrabrilliant/staruml-mcp-ext.git"
+    "url": "git+https://github.com/ezrabrilliant/staruml-mcp-extension.git"
   },
   "bugs": {
-    "url": "https://github.com/ezrabrilliant/staruml-mcp-ext/issues"
+    "url": "https://github.com/ezrabrilliant/staruml-mcp-extension/issues"
   },
   "engines": {
     "staruml": ">=7.0.0"
