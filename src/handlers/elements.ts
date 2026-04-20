@@ -100,50 +100,91 @@ export const deleteElement: Handler = (body) => {
     return { success: false, error: `Element not found: ${id}` };
   }
   try {
-    const targets = collectDeletionTargets(elem as Record<string, unknown>);
-    (app.engine as unknown as { deleteElements: (arr: unknown[]) => void }).deleteElements(targets);
-    return { success: true, data: { deleted: id, deleted_count: targets.length } };
+    const { models, views } = collectDeletionTargets(elem as Record<string, unknown>);
+    // StarUML Engine.deleteElements(models, views) takes TWO arrays per API docs.
+    (
+      app.engine as unknown as {
+        deleteElements: (models: unknown[], views: unknown[]) => void;
+      }
+    ).deleteElements(models, views);
+    return {
+      success: true,
+      data: {
+        deleted: id,
+        models_deleted: models.length,
+        views_deleted: views.length,
+      },
+    };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
 };
 
 /**
- * Collects the element, all its nested ownedElements, and all Views referring
- * to any of them. StarUML's Engine.deleteElements requires the caller to
- * pass every related object explicitly — otherwise orphans remain.
+ * Collects, recursively, the element and all nested owned elements, plus all
+ * Views referring to any of them. Returns the collection split into two lists
+ * (models and views) because StarUML `Engine.deleteElements` takes two arrays
+ * (see docs at https://files.staruml.io/api-docs/2.0.0/api/modules/engine/Engine.html).
+ * Views are heuristically detected by the `model` property (View classes have
+ * a backing model reference).
  */
-function collectDeletionTargets(root: Record<string, unknown>): Record<string, unknown>[] {
+function collectDeletionTargets(root: Record<string, unknown>): {
+  models: Record<string, unknown>[];
+  views: Record<string, unknown>[];
+} {
   const seen = new Set<string>();
-  const out: Record<string, unknown>[] = [];
+  const models: Record<string, unknown>[] = [];
+  const views: Record<string, unknown>[] = [];
   const stack: Record<string, unknown>[] = [root];
 
   while (stack.length) {
     const e = stack.pop()!;
-    const id = typeof e._id === "string" ? e._id : "";
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    out.push(e);
+    const eid = typeof e._id === "string" ? e._id : "";
+    if (!eid || seen.has(eid)) continue;
+    seen.add(eid);
 
-    const owned = Array.isArray(e.ownedElements) ? (e.ownedElements as Record<string, unknown>[]) : [];
+    if (isView(e)) {
+      views.push(e);
+    } else {
+      models.push(e);
+    }
+
+    const owned = Array.isArray(e.ownedElements)
+      ? (e.ownedElements as Record<string, unknown>[])
+      : [];
     for (const child of owned) stack.push(child);
 
-    const views = Array.isArray(e.ownedViews) ? (e.ownedViews as Record<string, unknown>[]) : [];
-    for (const v of views) stack.push(v);
+    const ownedViews = Array.isArray(e.ownedViews)
+      ? (e.ownedViews as Record<string, unknown>[])
+      : [];
+    for (const v of ownedViews) stack.push(v);
+
+    const subViews = Array.isArray(e.subViews) ? (e.subViews as Record<string, unknown>[]) : [];
+    for (const v of subViews) stack.push(v);
 
     try {
       const repo = app.repository as unknown as {
         getViewsOf?: (el: Record<string, unknown>) => Record<string, unknown>[];
+        getEdgeViewsOf?: (el: Record<string, unknown>) => Record<string, unknown>[];
         getRefsTo?: (el: Record<string, unknown>) => Record<string, unknown>[];
       };
       if (repo.getViewsOf) for (const v of repo.getViewsOf(e) ?? []) stack.push(v);
+      if (repo.getEdgeViewsOf) for (const v of repo.getEdgeViewsOf(e) ?? []) stack.push(v);
       if (repo.getRefsTo) for (const r of repo.getRefsTo(e) ?? []) stack.push(r);
     } catch {
       /* ignore */
     }
   }
 
-  return out;
+  return { models, views };
+}
+
+/** Heuristic: a View has a `model` field pointing back to a model element. */
+function isView(e: Record<string, unknown>): boolean {
+  if (e.model && typeof e.model === "object") return true;
+  const ctor = e.constructor as { name?: string } | undefined;
+  const name = ctor?.name ?? "";
+  return name.endsWith("View") || name === "Shape" || name === "Edge";
 }
 
 /**
@@ -176,24 +217,22 @@ export const createElementWithView: Handler = (body) => {
   if (!diagram) return { success: false, error: `Diagram not found: ${diagramId}` };
 
   try {
+    // Per docs: Factory.createModelAndView(id, parent, diagram, options)
     const factory = app.factory as unknown as {
-      createModelAndView: (o: Record<string, unknown>) => Record<string, unknown>;
+      createModelAndView: (
+        id: string,
+        parent: unknown,
+        diagram: unknown,
+        options: Record<string, unknown>,
+      ) => Record<string, unknown>;
     };
-    const options: Record<string, unknown> = {
-      id: typeName,
-      parent,
-      diagram,
-      x1,
-      y1,
-      x2,
-      y2,
-    };
+    const options: Record<string, unknown> = { x1, y1, x2, y2 };
     if (name !== undefined) {
       options.modelInitializer = (m: Record<string, unknown>) => {
         m.name = name;
       };
     }
-    const view = factory.createModelAndView(options);
+    const view = factory.createModelAndView(typeName, parent, diagram, options);
     const model = view.model as Record<string, unknown> | undefined;
     return {
       success: true,
@@ -244,12 +283,14 @@ export const createEdgeWithView: Handler = (body) => {
 
   try {
     const factory = app.factory as unknown as {
-      createModelAndView: (o: Record<string, unknown>) => Record<string, unknown>;
+      createModelAndView: (
+        id: string,
+        parent: unknown,
+        diagram: unknown,
+        options: Record<string, unknown>,
+      ) => Record<string, unknown>;
     };
     const options: Record<string, unknown> = {
-      id: typeName,
-      parent,
-      diagram,
       tailView,
       headView,
       tailModel: (tailView as Record<string, unknown>).model,
@@ -260,7 +301,7 @@ export const createEdgeWithView: Handler = (body) => {
         m.name = name;
       };
     }
-    const view = factory.createModelAndView(options);
+    const view = factory.createModelAndView(typeName, parent, diagram, options);
     const model = view.model as Record<string, unknown> | undefined;
     return {
       success: true,

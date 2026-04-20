@@ -58,7 +58,7 @@ var ExtensionHttpServer = class {
     if (req.method === "GET" && url === "/") {
       this.sendJson(res, 200, {
         name: "staruml-mcp-extension",
-        version: "0.2.0",
+        version: "0.2.1",
         endpoints: Object.keys(this.handlers).sort()
       });
       return;
@@ -319,35 +319,56 @@ var deleteElement = (body) => {
     return { success: false, error: `Element not found: ${id}` };
   }
   try {
-    const targets = collectDeletionTargets(elem);
-    app.engine.deleteElements(targets);
-    return { success: true, data: { deleted: id, deleted_count: targets.length } };
+    const { models, views } = collectDeletionTargets(elem);
+    app.engine.deleteElements(models, views);
+    return {
+      success: true,
+      data: {
+        deleted: id,
+        models_deleted: models.length,
+        views_deleted: views.length
+      }
+    };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
 };
 function collectDeletionTargets(root) {
   const seen = /* @__PURE__ */ new Set();
-  const out = [];
+  const models = [];
+  const views = [];
   const stack = [root];
   while (stack.length) {
     const e = stack.pop();
-    const id = typeof e._id === "string" ? e._id : "";
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    out.push(e);
+    const eid = typeof e._id === "string" ? e._id : "";
+    if (!eid || seen.has(eid)) continue;
+    seen.add(eid);
+    if (isView(e)) {
+      views.push(e);
+    } else {
+      models.push(e);
+    }
     const owned = Array.isArray(e.ownedElements) ? e.ownedElements : [];
     for (const child of owned) stack.push(child);
-    const views = Array.isArray(e.ownedViews) ? e.ownedViews : [];
-    for (const v of views) stack.push(v);
+    const ownedViews = Array.isArray(e.ownedViews) ? e.ownedViews : [];
+    for (const v of ownedViews) stack.push(v);
+    const subViews = Array.isArray(e.subViews) ? e.subViews : [];
+    for (const v of subViews) stack.push(v);
     try {
       const repo = app.repository;
       if (repo.getViewsOf) for (const v of repo.getViewsOf(e) ?? []) stack.push(v);
+      if (repo.getEdgeViewsOf) for (const v of repo.getEdgeViewsOf(e) ?? []) stack.push(v);
       if (repo.getRefsTo) for (const r of repo.getRefsTo(e) ?? []) stack.push(r);
     } catch {
     }
   }
-  return out;
+  return { models, views };
+}
+function isView(e) {
+  if (e.model && typeof e.model === "object") return true;
+  const ctor = e.constructor;
+  const name = ctor?.name ?? "";
+  return name.endsWith("View") || name === "Shape" || name === "Edge";
 }
 var createElementWithView = (body) => {
   const typeName = body.type;
@@ -373,21 +394,13 @@ var createElementWithView = (body) => {
   if (!diagram) return { success: false, error: `Diagram not found: ${diagramId}` };
   try {
     const factory = app.factory;
-    const options = {
-      id: typeName,
-      parent,
-      diagram,
-      x1,
-      y1,
-      x2,
-      y2
-    };
+    const options = { x1, y1, x2, y2 };
     if (name !== void 0) {
       options.modelInitializer = (m) => {
         m.name = name;
       };
     }
-    const view = factory.createModelAndView(options);
+    const view = factory.createModelAndView(typeName, parent, diagram, options);
     const model = view.model;
     return {
       success: true,
@@ -430,9 +443,6 @@ var createEdgeWithView = (body) => {
   try {
     const factory = app.factory;
     const options = {
-      id: typeName,
-      parent,
-      diagram,
       tailView,
       headView,
       tailModel: tailView.model,
@@ -443,7 +453,7 @@ var createEdgeWithView = (body) => {
         m.name = name;
       };
     }
-    const view = factory.createModelAndView(options);
+    const view = factory.createModelAndView(typeName, parent, diagram, options);
     const model = view.model;
     return {
       success: true,

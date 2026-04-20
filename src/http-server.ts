@@ -57,7 +57,7 @@ export class ExtensionHttpServer {
     if (req.method === "GET" && url === "/") {
       this.sendJson(res, 200, {
         name: "staruml-mcp-extension",
-        version: "0.2.0",
+        version: "0.2.1",
         endpoints: Object.keys(this.handlers).sort(),
       });
       return;
