@@ -58,8 +58,7 @@ var ExtensionHttpServer = class {
     if (req.method === "GET" && url === "/") {
       this.sendJson(res, 200, {
         name: "staruml-mcp-extension",
-        version: "0.1.0",
-        build: "b3-factory-fix",
+        version: "0.2.0",
         endpoints: Object.keys(this.handlers).sort()
       });
       return;
@@ -320,8 +319,139 @@ var deleteElement = (body) => {
     return { success: false, error: `Element not found: ${id}` };
   }
   try {
-    app.engine.deleteElements([elem]);
-    return { success: true, data: { deleted: id } };
+    const targets = collectDeletionTargets(elem);
+    app.engine.deleteElements(targets);
+    return { success: true, data: { deleted: id, deleted_count: targets.length } };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+};
+function collectDeletionTargets(root) {
+  const seen = /* @__PURE__ */ new Set();
+  const out = [];
+  const stack = [root];
+  while (stack.length) {
+    const e = stack.pop();
+    const id = typeof e._id === "string" ? e._id : "";
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(e);
+    const owned = Array.isArray(e.ownedElements) ? e.ownedElements : [];
+    for (const child of owned) stack.push(child);
+    const views = Array.isArray(e.ownedViews) ? e.ownedViews : [];
+    for (const v of views) stack.push(v);
+    try {
+      const repo = app.repository;
+      if (repo.getViewsOf) for (const v of repo.getViewsOf(e) ?? []) stack.push(v);
+      if (repo.getRefsTo) for (const r of repo.getRefsTo(e) ?? []) stack.push(r);
+    } catch {
+    }
+  }
+  return out;
+}
+var createElementWithView = (body) => {
+  const typeName = body.type;
+  const parentId = body.parentId;
+  const diagramId = body.diagramId;
+  const name = typeof body.name === "string" ? body.name : void 0;
+  const x1 = typeof body.x === "number" ? body.x : 100;
+  const y1 = typeof body.y === "number" ? body.y : 100;
+  const x2 = typeof body.x2 === "number" ? body.x2 : x1 + 100;
+  const y2 = typeof body.y2 === "number" ? body.y2 : y1 + 50;
+  if (typeof typeName !== "string" || typeName.length === 0) {
+    return { success: false, error: "Required field 'type' missing (e.g. 'UMLUseCase', 'UMLActor', 'UMLAction')" };
+  }
+  if (typeof parentId !== "string" || parentId.length === 0) {
+    return { success: false, error: "Required field 'parentId' missing" };
+  }
+  if (typeof diagramId !== "string" || diagramId.length === 0) {
+    return { success: false, error: "Required field 'diagramId' missing" };
+  }
+  const parent = app.repository.get(parentId);
+  if (!parent) return { success: false, error: `Parent not found: ${parentId}` };
+  const diagram = app.repository.get(diagramId);
+  if (!diagram) return { success: false, error: `Diagram not found: ${diagramId}` };
+  try {
+    const factory = app.factory;
+    const options = {
+      id: typeName,
+      parent,
+      diagram,
+      x1,
+      y1,
+      x2,
+      y2
+    };
+    if (name !== void 0) {
+      options.modelInitializer = (m) => {
+        m.name = name;
+      };
+    }
+    const view = factory.createModelAndView(options);
+    const model = view.model;
+    return {
+      success: true,
+      data: {
+        view: { _id: view._id },
+        model: model ? { _id: model._id, name: model.name } : null
+      }
+    };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+};
+var createEdgeWithView = (body) => {
+  const typeName = body.type;
+  const parentId = body.parentId;
+  const diagramId = body.diagramId;
+  const tailViewId = body.tailViewId;
+  const headViewId = body.headViewId;
+  const name = typeof body.name === "string" ? body.name : void 0;
+  if (typeof typeName !== "string" || typeName.length === 0) {
+    return { success: false, error: "Required field 'type' missing (e.g. 'UMLAssociation', 'UMLControlFlow')" };
+  }
+  if (typeof parentId !== "string" || parentId.length === 0) {
+    return { success: false, error: "Required field 'parentId' missing" };
+  }
+  if (typeof diagramId !== "string" || diagramId.length === 0) {
+    return { success: false, error: "Required field 'diagramId' missing" };
+  }
+  if (typeof tailViewId !== "string" || typeof headViewId !== "string") {
+    return { success: false, error: "Required fields 'tailViewId' and 'headViewId' missing" };
+  }
+  const parent = app.repository.get(parentId);
+  const diagram = app.repository.get(diagramId);
+  const tailView = app.repository.get(tailViewId);
+  const headView = app.repository.get(headViewId);
+  if (!parent) return { success: false, error: `Parent not found: ${parentId}` };
+  if (!diagram) return { success: false, error: `Diagram not found: ${diagramId}` };
+  if (!tailView) return { success: false, error: `Tail view not found: ${tailViewId}` };
+  if (!headView) return { success: false, error: `Head view not found: ${headViewId}` };
+  try {
+    const factory = app.factory;
+    const options = {
+      id: typeName,
+      parent,
+      diagram,
+      tailView,
+      headView,
+      tailModel: tailView.model,
+      headModel: headView.model
+    };
+    if (name !== void 0) {
+      options.modelInitializer = (m) => {
+        m.name = name;
+      };
+    }
+    const view = factory.createModelAndView(options);
+    const model = view.model;
+    return {
+      success: true,
+      data: {
+        view: { _id: view._id },
+        model: model ? { _id: model._id, name: model.name } : null
+      }
+    };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
@@ -477,6 +607,8 @@ var handlers = {
   "/create_element": createElement,
   "/update_element": updateElement,
   "/delete_element": deleteElement,
+  "/create_element_with_view": createElementWithView,
+  "/create_edge_with_view": createEdgeWithView,
   // Diagram management
   "/create_diagram": createDiagram,
   "/switch_diagram": switchDiagram,
@@ -514,7 +646,7 @@ async function init() {
 function showServerInfo() {
   const endpoints = Object.keys(handlers).sort().join("\n  ");
   window.alert(
-    `staruml-mcp-ext v0.1.0
+    `staruml-mcp-extension v0.2.0
 
 Listening on http://localhost:${EXT_PORT}
 

@@ -13,6 +13,8 @@ import {
   createElement,
   updateElement,
   deleteElement,
+  createElementWithView,
+  createEdgeWithView,
 } from "./handlers/elements.js";
 import {
   createDiagram,
@@ -83,6 +85,8 @@ const handlers: Record<string, Handler> = {
   "/create_element": createElement,
   "/update_element": updateElement,
   "/delete_element": deleteElement,
+  "/create_element_with_view": createElementWithView,
+  "/create_edge_with_view": createEdgeWithView,
 
   // Diagram management
   "/create_diagram": createDiagram,
@@ -127,7 +131,7 @@ async function init(): Promise<void> {
 function showServerInfo(): void {
   const endpoints = Object.keys(handlers).sort().join("\n  ");
   window.alert(
-    `staruml-mcp-ext v0.1.0\n\nListening on http://localhost:${EXT_PORT}\n\nEndpoints:\n  ${endpoints}`,
+    `staruml-mcp-extension v0.2.0\n\nListening on http://localhost:${EXT_PORT}\n\nEndpoints:\n  ${endpoints}`,
   );
 }
 
